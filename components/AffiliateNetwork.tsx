@@ -251,13 +251,6 @@ export const AffiliateNetwork: React.FC<AffiliateNetworkProps> = ({ rootAffiliat
                 renderCustomNodeElement={renderCustomNode}
                 separation={{ siblings: 1.5, nonSiblings: 2 }}
                 nodeSize={{ x: 220, y: 180 }}
-                styles={{
-                    links: {
-                        stroke: 'rgba(255, 255, 255, 0.1)',
-                        strokeWidth: 2,
-                        strokeDasharray: '4,4'
-                    }
-                }}
             />
         </div>
     );

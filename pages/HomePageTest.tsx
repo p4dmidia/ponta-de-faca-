@@ -127,7 +127,7 @@ const HomePageTest: React.FC = () => {
             </header>
 
             {/* ==================== HERO SECTION ==================== */}
-            <section id="hero" class="relative bg-gradient-to-br from-white via-white to-gelo overflow-hidden">
+            <section id="hero" className="relative bg-gradient-to-br from-white via-white to-gelo overflow-hidden">
                 <div className="container mx-auto px-4 lg:px-8 py-16 md:py-24 lg:py-32 flex flex-col lg:flex-row items-center gap-12">
                     <div className="flex-1 text-center lg:text-left">
                         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight text-gray-900 mb-6">
@@ -209,7 +209,7 @@ const HomePageTest: React.FC = () => {
                         <div className="flex-1">
                             <span className="text-verde font-bold text-sm uppercase tracking-widest block mb-2">A Solução</span>
                             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                                O <span class="text-azul">Hub de Sobrevivência Financeira</span> que realmente funciona
+                                O <span className="text-azul">Hub de Sobrevivência Financeira</span> que realmente funciona
                             </h2>
                             <p className="text-gray-600 text-lg mb-6 leading-relaxed">
                                 No <strong>Clube do Seu Bolso</strong>, você não paga para ter serviços — você economiza e ainda ganha dinheiro indicando quem precisa. 

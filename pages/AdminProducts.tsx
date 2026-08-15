@@ -93,6 +93,7 @@ const AdminProducts: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<any[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -106,6 +107,15 @@ const AdminProducts: React.FC = () => {
         commission_adesao: '',
         commission_mensal: '',
         description: '',
+        item_type: 'plan', // 'plan' | 'product'
+        category_id: '',
+        price: '',
+        stock_quantity: '999',
+        weight: '1.0',
+        length: '20',
+        width: '15',
+        height: '10',
+        origin_zip: '30130-100'
     });
 
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -117,7 +127,23 @@ const AdminProducts: React.FC = () => {
 
     useEffect(() => {
         fetchProducts();
+        fetchCategories();
     }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('product_categories')
+                .select('id, name')
+                .eq('organization_id', ORGANIZATION_ID)
+                .order('name');
+            if (data && !error) {
+                setCategories(data);
+            }
+        } catch (e) {
+            console.error('Error fetching categories:', e);
+        }
+    };
 
     const seedDefaultPlans = async () => {
         try {
@@ -237,11 +263,7 @@ const AdminProducts: React.FC = () => {
                     .eq('organization_id', ORGANIZATION_ID)
                     .order('created_at', { ascending: false });
 
-                const plansOnly = (refetched || []).filter((prod: any) => 
-                    prod.product_categories?.name === 'Planos' || 
-                    prod.variations?.plan_type !== undefined
-                );
-                setProducts(plansOnly);
+                setProducts(refetched || []);
             }
         } catch (e: any) {
             console.error("Error seeding plans:", e);
@@ -262,20 +284,15 @@ const AdminProducts: React.FC = () => {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                toast.error('Erro ao carregar planos');
+                toast.error('Erro ao carregar itens');
                 console.error(error);
                 return;
             }
 
-            const plansOnly = (data || []).filter((prod: any) => 
-                prod.product_categories?.name === 'Planos' || 
-                prod.variations?.plan_type !== undefined
-            );
-
-            if (plansOnly.length === 0 && (data || []).length === 0) {
+            if ((data || []).length === 0) {
                 await seedDefaultPlans();
             } else {
-                setProducts(plansOnly);
+                setProducts(data || []);
             }
         } catch (err) {
             console.error("Error fetching data:", err);
@@ -286,6 +303,7 @@ const AdminProducts: React.FC = () => {
 
     const handleOpenEdit = (prod: Product) => {
         setEditingProduct(prod);
+        const isPlan = prod.product_categories?.name === 'Planos' || prod.variations?.plan_type !== undefined;
         setFormData({
             name: prod.name,
             plan_type: prod.variations?.plan_type || 'Individual',
@@ -295,6 +313,15 @@ const AdminProducts: React.FC = () => {
             commission_adesao: prod.variations?.comissao_adesao?.toString() || '',
             commission_mensal: prod.variations?.comissao_mensal?.toString() || '',
             description: prod.description || '',
+            item_type: isPlan ? 'plan' : 'product',
+            category_id: prod.category_id?.toString() || '',
+            price: prod.price?.toString() || '',
+            stock_quantity: prod.stock_quantity?.toString() || '0',
+            weight: prod.weight?.toString() || '1.0',
+            length: prod.length?.toString() || '20',
+            width: prod.width?.toString() || '15',
+            height: prod.height?.toString() || '10',
+            origin_zip: prod.origin_zip || '30130-100'
         });
         const imgs = (prod.image_url || '').split(',').map(s => s.trim()).filter(Boolean);
         setExistingImages(imgs);
@@ -304,7 +331,7 @@ const AdminProducts: React.FC = () => {
     };
 
     const handleDeleteProduct = async (id: string) => {
-        if (!window.confirm('Tem certeza que deseja excluir este plano?')) return;
+        if (!window.confirm('Tem certeza que deseja excluir este item?')) return;
 
         try {
             const { error } = await supabase
@@ -315,10 +342,10 @@ const AdminProducts: React.FC = () => {
 
             if (error) throw error;
 
-            toast.success('Plano removido com sucesso!');
+            toast.success('Item removido com sucesso!');
             fetchProducts();
         } catch (error) {
-            toast.error('Erro ao excluir plano');
+            toast.error('Erro ao excluir item');
         }
     };
 
@@ -332,7 +359,7 @@ const AdminProducts: React.FC = () => {
 
             if (error) throw error;
 
-            toast.success(`Plano ${!currentStatus ? 'ativado' : 'desativado'} com sucesso!`);
+            toast.success(`Item ${!currentStatus ? 'ativado' : 'desativado'} com sucesso!`);
             fetchProducts();
         } catch (error) {
             toast.error('Erro ao atualizar status');
@@ -348,7 +375,16 @@ const AdminProducts: React.FC = () => {
             cost_platform: '',
             commission_adesao: '',
             commission_mensal: '',
-            description: ''
+            description: '',
+            item_type: 'plan',
+            category_id: '',
+            price: '',
+            stock_quantity: '999',
+            weight: '1.0',
+            length: '20',
+            width: '15',
+            height: '10',
+            origin_zip: '30130-100'
         });
         setEditingProduct(null);
         setSelectedImages([]);
@@ -383,64 +419,85 @@ const AdminProducts: React.FC = () => {
 
             const imageUrl = finalImageUrls.join(',');
 
-            // 1. Encontra ou cria a categoria "Planos"
-            let planosCategoryId: number | null = null;
-            const { data: catData } = await supabase
-                .from('product_categories')
-                .select('id')
-                .eq('name', 'Planos')
-                .eq('organization_id', ORGANIZATION_ID)
-                .maybeSingle();
+            const isPlan = formData.item_type === 'plan';
+            let categoryId: number | null = null;
 
-            if (catData) {
-                planosCategoryId = catData.id;
-            } else {
-                const { data: newCat } = await supabase
+            if (isPlan) {
+                // Find or create "Planos" category
+                let planosCategoryId: number | null = null;
+                const { data: catData } = await supabase
                     .from('product_categories')
-                    .insert([{ name: 'Planos', organization_id: ORGANIZATION_ID }])
                     .select('id')
-                    .single();
-                if (newCat) planosCategoryId = newCat.id;
+                    .eq('name', 'Planos')
+                    .eq('organization_id', ORGANIZATION_ID)
+                    .maybeSingle();
+
+                if (catData) {
+                    planosCategoryId = catData.id;
+                } else {
+                    const { data: newCat } = await supabase
+                        .from('product_categories')
+                        .insert([{ name: 'Planos', organization_id: ORGANIZATION_ID }])
+                        .select('id')
+                        .single();
+                    if (newCat) planosCategoryId = newCat.id;
+                }
+                categoryId = planosCategoryId;
+            } else {
+                categoryId = formData.category_id ? parseInt(formData.category_id) : null;
             }
 
-            const rawAdesao = parsePrice(formData.price_adesao);
-            const rawMensalidade = parsePrice(formData.price_mensalidade);
-            const rawPlatform = parsePrice(formData.cost_platform);
-            const rawCommAdesao = parsePrice(formData.commission_adesao);
-            const rawCommMensal = parsePrice(formData.commission_mensal);
+            const rawPrice = isPlan ? parsePrice(formData.price_mensalidade) : parsePrice(formData.price);
+            const rawStock = isPlan ? 999 : parseInt(formData.stock_quantity || '0');
 
-            if (rawMensalidade <= 0) {
-                toast.error('O valor da mensalidade deve ser maior que 0');
+            if (rawPrice <= 0) {
+                toast.error('O preço deve ser maior que 0');
+                setIsSaving(false);
+                return;
+            }
+
+            if (!isPlan && !categoryId) {
+                toast.error('Selecione uma categoria para o produto');
                 setIsSaving(false);
                 return;
             }
 
             const slug = slugify(formData.name);
 
-            const productData = {
+            const productData: any = {
                 name: formData.name,
-                category_id: planosCategoryId,
-                price: rawMensalidade,
-                stock_quantity: 999, // ilimitado para planos
+                category_id: categoryId,
+                price: rawPrice,
+                stock_quantity: rawStock,
                 description: formData.description,
                 image_url: imageUrl || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=600',
                 is_active: true,
-                weight: 1.0,
-                length: 20,
-                width: 15,
-                height: 10,
-                origin_zip: '30130-100',
-                variations: {
+                weight: parseFloat(formData.weight || '1.0'),
+                length: parseFloat(formData.length || '20'),
+                width: parseFloat(formData.width || '15'),
+                height: parseFloat(formData.height || '10'),
+                origin_zip: formData.origin_zip || '30130-100',
+                organization_id: ORGANIZATION_ID
+            };
+
+            if (isPlan) {
+                const rawAdesao = parsePrice(formData.price_adesao);
+                const rawPlatform = parsePrice(formData.cost_platform);
+                const rawCommAdesao = parsePrice(formData.commission_adesao);
+                const rawCommMensal = parsePrice(formData.commission_mensal);
+
+                productData.variations = {
                     plan_type: formData.plan_type,
                     adesao: rawAdesao,
-                    mensalidade: rawMensalidade,
+                    mensalidade: rawPrice,
                     custo_plataforma: rawPlatform,
                     comissao_adesao: rawCommAdesao,
                     comissao_mensal: rawCommMensal,
                     slug: slug
-                },
-                organization_id: ORGANIZATION_ID
-            };
+                };
+            } else {
+                productData.variations = null;
+            }
 
             if (editingProduct) {
                 const { error } = await supabase
@@ -449,20 +506,23 @@ const AdminProducts: React.FC = () => {
                     .eq('id', editingProduct.id)
                     .eq('organization_id', ORGANIZATION_ID);
                 if (error) throw error;
-                toast.success('Plano atualizado com sucesso!');
+                toast.success(isPlan ? 'Plano atualizado com sucesso!' : 'Produto atualizado com sucesso!');
             } else {
                 const { error } = await supabase
                     .from('products')
                     .insert([productData]);
                 if (error) throw error;
-                toast.success('Plano cadastrado com sucesso!');
+                toast.success(isPlan ? 'Plano cadastrado com sucesso!' : 'Produto cadastrado com sucesso!');
             }
 
             setIsNewModalOpen(false);
             resetForm();
             fetchProducts();
         } catch (error: any) {
-            toast.error(editingProduct ? 'Erro ao atualizar plano' : 'Erro ao cadastrar plano');
+            toast.error(editingProduct 
+                ? (formData.item_type === 'plan' ? 'Erro ao atualizar plano' : 'Erro ao atualizar produto') 
+                : (formData.item_type === 'plan' ? 'Erro ao cadastrar plano' : 'Erro ao cadastrar produto')
+            );
             console.error(error);
         } finally {
             setIsSaving(false);
@@ -517,8 +577,18 @@ const AdminProducts: React.FC = () => {
 
     const filteredProducts = products.filter(prod => {
         const matchesSearch = prod.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const planType = prod.variations?.plan_type || 'Individual';
-        const matchesType = filterType === 'Todos' || planType === filterType;
+        
+        const isPlan = prod.product_categories?.name === 'Planos' || prod.variations?.plan_type !== undefined;
+        const planType = prod.variations?.plan_type;
+        
+        let matchesType = true;
+        if (filterType === 'Individual') {
+            matchesType = isPlan && planType === 'Individual';
+        } else if (filterType === 'Familiar') {
+            matchesType = isPlan && planType === 'Familiar';
+        } else if (filterType === 'Produtos') {
+            matchesType = !isPlan;
+        }
 
         let statusText = 'Ativo';
         if (!prod.is_active) statusText = 'Inativo';
@@ -536,10 +606,10 @@ const AdminProducts: React.FC = () => {
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                     <div>
                         <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight font-display">
-                            Planos de Assinatura
+                            Planos &amp; Produtos
                         </h1>
                         <p className="text-slate-400 font-bold mt-1 uppercase text-xs tracking-widest font-sans">
-                            Configuração dos planos e comissões do clube
+                            Gerenciamento de produtos, assinaturas e comissões
                         </p>
                     </div>
 
@@ -547,7 +617,7 @@ const AdminProducts: React.FC = () => {
                         onClick={() => { resetForm(); setIsNewModalOpen(true); }}
                         className="w-full xl:w-auto bg-[#a61d24] text-white hover:bg-[#c92a32] font-black text-sm px-8 py-5 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl hover:shadow-[#a61d24]/20 hover:-translate-y-0.5 active:translate-y-0"
                     >
-                        <Plus className="w-5 h-5" /> NOVO PLANO
+                        <Plus className="w-5 h-5" /> NOVO CADASTRO
                     </button>
                 </div>
 
@@ -573,9 +643,10 @@ const AdminProducts: React.FC = () => {
                                     onChange={(e) => setFilterType(e.target.value)}
                                     className="bg-[#141414] border border-white/5 rounded-xl py-2.5 px-4 font-bold text-white outline-none text-xs"
                                 >
-                                    <option value="Todos">Todos</option>
-                                    <option value="Individual">Individual</option>
-                                    <option value="Familiar">Familiar</option>
+                                    <option value="Todos">Todos os Tipos</option>
+                                    <option value="Individual">Planos Individuais</option>
+                                    <option value="Familiar">Planos Familiares</option>
+                                    <option value="Produtos">Produtos Físicos</option>
                                 </select>
                             </div>
 
@@ -602,7 +673,7 @@ const AdminProducts: React.FC = () => {
                             <table className="w-full">
                                 <thead className="bg-[#141414]">
                                     <tr>
-                                        <th className="text-left py-6 px-8 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Plano</th>
+                                        <th className="text-left py-6 px-8 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Item</th>
                                         <th className="text-left py-6 px-4 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Tipo</th>
                                         <th className="text-left py-6 px-4 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Adesão</th>
                                         <th className="text-left py-6 px-4 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">Mensalidade</th>
@@ -630,6 +701,7 @@ const AdminProducts: React.FC = () => {
                                         ))
                                     ) : currentData.map((prod) => {
                                         const statusInfo = getStatusInfo(prod);
+                                        const isPlan = prod.product_categories?.name === 'Planos' || prod.variations?.plan_type !== undefined;
                                         return (
                                             <tr key={prod.id} className="group hover:bg-white/5 transition-colors">
                                                 <td className="py-6 px-8">
@@ -647,24 +719,34 @@ const AdminProducts: React.FC = () => {
                                                     </div>
                                                 </td>
                                                 <td className="py-6 px-4">
-                                                    <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase ${prod.variations?.plan_type === 'Familiar' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                                                        {prod.variations?.plan_type || 'Individual'}
-                                                    </span>
+                                                    {isPlan ? (
+                                                        <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase ${prod.variations?.plan_type === 'Familiar' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                            {prod.variations?.plan_type || 'Individual'}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                                                            {prod.product_categories?.name || 'Produto'}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="py-6 px-4 font-black text-white">
-                                                    {formatCurrency(prod.variations?.adesao || 0)}
+                                                    {isPlan ? (
+                                                        formatCurrency(prod.variations?.adesao || 0)
+                                                    ) : (
+                                                        <span className="text-slate-400 font-medium">Estoque: {prod.stock_quantity ?? 0}</span>
+                                                    )}
                                                 </td>
                                                 <td className="py-6 px-4 font-black text-[#a61d24]">
-                                                    {formatCurrency(prod.variations?.mensalidade || prod.price || 0)}
+                                                    {formatCurrency(prod.price || 0)}
                                                 </td>
-                                                <td className="py-6 px-4 font-bold text-slate-400">
-                                                    {formatCurrency(prod.variations?.custo_plataforma || 0)}
-                                                </td>
-                                                <td className="py-6 px-4 font-black text-emerald-400">
-                                                    {formatCurrency(prod.variations?.comissao_adesao || 0)}
+                                                <td className="py-6 px-4 font-bold text-slate-500">
+                                                    {isPlan ? formatCurrency(prod.variations?.custo_plataforma || 0) : '-'}
                                                 </td>
                                                 <td className="py-6 px-4 font-black text-emerald-400">
-                                                    {formatCurrency(prod.variations?.comissao_mensal || 0)}
+                                                    {isPlan ? formatCurrency(prod.variations?.comissao_adesao || 0) : '-'}
+                                                </td>
+                                                <td className="py-6 px-4 font-black text-emerald-400">
+                                                    {isPlan ? formatCurrency(prod.variations?.comissao_mensal || 0) : '-'}
                                                 </td>
                                                 <td className="py-6 px-4 text-center">
                                                     <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${statusInfo.color}`}>
@@ -722,6 +804,7 @@ const AdminProducts: React.FC = () => {
                         ) : currentData.length > 0 ? (
                             currentData.map((prod) => {
                                 const statusInfo = getStatusInfo(prod);
+                                const isPlan = prod.product_categories?.name === 'Planos' || prod.variations?.plan_type !== undefined;
                                 return (
                                     <div key={prod.id} className="bg-[#0d0d0d] p-6 rounded-[2rem] border border-white/5 shadow-sm space-y-4">
                                         <div className="flex items-center gap-4">
@@ -732,11 +815,17 @@ const AdminProducts: React.FC = () => {
                                                     <Package className="w-8 h-8 text-[#a61d24]" />
                                                 )}
                                             </div>
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-grow">
                                                 <h3 className="font-black text-white text-lg truncate">{prod.name}</h3>
-                                                <span className={`inline-flex px-2 py-0.5 mt-1 rounded-full text-[9px] font-black uppercase ${prod.variations?.plan_type === 'Familiar' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                                                    {prod.variations?.plan_type || 'Individual'}
-                                                </span>
+                                                {isPlan ? (
+                                                    <span className={`inline-flex px-2 py-0.5 mt-1 rounded-full text-[9px] font-black uppercase ${prod.variations?.plan_type === 'Familiar' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {prod.variations?.plan_type || 'Individual'}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex px-2 py-0.5 mt-1 rounded-full text-[9px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                                                        {prod.product_categories?.name || 'Produto'}
+                                                    </span>
+                                                )}
                                                 <div className="mt-2">
                                                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${statusInfo.color}`}>
                                                         {statusInfo.text}
@@ -744,24 +833,45 @@ const AdminProducts: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5 text-xs text-slate-400">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Adesão</p>
-                                                <p className="font-black text-white">{formatCurrency(prod.variations?.adesao || 0)}</p>
+                                        {isPlan ? (
+                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5 text-xs text-slate-400">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Adesão</p>
+                                                    <p className="font-black text-white">{formatCurrency(prod.variations?.adesao || 0)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mensalidade</p>
+                                                    <p className="font-black text-[#a61d24]">{formatCurrency(prod.price || 0)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comissão Adesão</p>
+                                                    <p className="font-bold text-emerald-400">{formatCurrency(prod.variations?.comissao_adesao || 0)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comissão Mensal</p>
+                                                    <p className="font-bold text-emerald-400">{formatCurrency(prod.variations?.comissao_mensal || 0)}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mensalidade</p>
-                                                <p className="font-black text-[#a61d24]">{formatCurrency(prod.variations?.mensalidade || prod.price || 0)}</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5 text-xs text-slate-400">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estoque</p>
+                                                    <p className="font-black text-white">{prod.stock_quantity ?? 0} unidades</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Preço</p>
+                                                    <p className="font-black text-[#a61d24]">{formatCurrency(prod.price || 0)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Peso</p>
+                                                    <p className="font-bold text-white">{prod.weight ?? 0} kg</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Dimensões</p>
+                                                    <p className="font-bold text-white">{prod.length || 0}x{prod.width || 0}x{prod.height || 0} cm</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comissão Adesão</p>
-                                                <p className="font-bold text-emerald-400">{formatCurrency(prod.variations?.comissao_adesao || 0)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comissão Mensal</p>
-                                                <p className="font-bold text-emerald-400">{formatCurrency(prod.variations?.comissao_mensal || 0)}</p>
-                                            </div>
-                                        </div>
+                                        )}
                                         <div className="flex items-center justify-between gap-2 pt-4 border-t border-white/5">
                                             <div className="flex gap-2">
                                                 <button
@@ -818,8 +928,14 @@ const AdminProducts: React.FC = () => {
                     <div className="bg-[#0d0d0d] w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-[3.5rem] border border-white/5 shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
                         <div className="p-6 md:p-10 border-b border-white/5 flex justify-between items-center shrink-0">
                             <div>
-                                <h2 className="text-2xl md:text-3xl font-black text-white font-display">{editingProduct ? 'Editar Plano' : 'Novo Plano'}</h2>
-                                <p className="text-slate-400 font-bold mt-1 uppercase text-[10px] md:text-xs tracking-widest font-sans">{editingProduct ? 'Atualizar plano de assinatura' : 'Adicionar plano de assinatura'}</p>
+                                <h2 className="text-2xl md:text-3xl font-black text-white font-display">
+                                    {editingProduct 
+                                        ? (formData.item_type === 'plan' ? 'Editar Plano' : 'Editar Produto') 
+                                        : (formData.item_type === 'plan' ? 'Novo Plano' : 'Novo Produto')}
+                                </h2>
+                                <p className="text-slate-400 font-bold mt-1 uppercase text-[10px] md:text-xs tracking-widest font-sans">
+                                    {formData.item_type === 'plan' ? 'Plano de assinatura do clube' : 'Produto físico para a loja'}
+                                </p>
                             </div>
                             <button type="button" onClick={() => setIsNewModalOpen(false)} className="p-3 md:p-4 bg-[#141414] text-slate-400 rounded-2xl hover:bg-red-500/10 hover:text-red-500 transition-all">
                                 <X className="w-5 h-5 md:w-6 md:h-6" />
@@ -829,91 +945,218 @@ const AdminProducts: React.FC = () => {
                         <div className="flex-grow overflow-y-auto p-6 md:p-10 custom-scrollbar">
                             <form className="space-y-8" onSubmit={handleSaveProduct}>
                                 <div className="space-y-6">
+                                    {/* Tipo de Cadastro */}
+                                    <div className="space-y-3 bg-[#141414] p-5 rounded-2xl border border-white/5">
+                                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Tipo de Cadastro</label>
+                                        <div className="flex gap-6 mt-1">
+                                            <label className="flex items-center gap-2 text-white font-bold text-sm cursor-pointer select-none">
+                                                <input
+                                                    type="radio"
+                                                    name="item_type"
+                                                    value="plan"
+                                                    checked={formData.item_type === 'plan'}
+                                                    disabled={editingProduct !== null}
+                                                    onChange={() => setFormData({ ...formData, item_type: 'plan' })}
+                                                    className="w-4 h-4 text-[#a61d24] focus:ring-[#a61d24]"
+                                                />
+                                                Plano de Assinatura
+                                            </label>
+                                            <label className="flex items-center gap-2 text-white font-bold text-sm cursor-pointer select-none">
+                                                <input
+                                                    type="radio"
+                                                    name="item_type"
+                                                    value="product"
+                                                    checked={formData.item_type === 'product'}
+                                                    disabled={editingProduct !== null}
+                                                    onChange={() => setFormData({ ...formData, item_type: 'product' })}
+                                                    className="w-4 h-4 text-[#a61d24] focus:ring-[#a61d24]"
+                                                />
+                                                Produto Físico
+                                            </label>
+                                        </div>
+                                    </div>
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Nome do Plano</label>
+                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                                                {formData.item_type === 'plan' ? 'Nome do Plano' : 'Nome do Produto'}
+                                            </label>
                                             <input
                                                 type="text"
                                                 required
                                                 value={formData.name}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                                placeholder="Ex: Clube Ponta D'Faca - Trimestral"
+                                                placeholder={formData.item_type === 'plan' ? "Ex: Clube Ponta D'Faca - Trimestral" : "Ex: Linguiça de Pernil com Ervas"}
                                             />
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Tipo do Plano</label>
-                                            <select
-                                                required
-                                                value={formData.plan_type}
-                                                onChange={(e) => setFormData({ ...formData, plan_type: e.target.value })}
-                                                className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                            >
-                                                <option value="Individual">Individual</option>
-                                                <option value="Familiar">Familiar</option>
-                                            </select>
-                                        </div>
+                                        {formData.item_type === 'plan' ? (
+                                            <>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Tipo do Plano</label>
+                                                    <select
+                                                        required
+                                                        value={formData.plan_type}
+                                                        onChange={(e) => setFormData({ ...formData, plan_type: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                    >
+                                                        <option value="Individual">Individual</option>
+                                                        <option value="Familiar">Familiar</option>
+                                                    </select>
+                                                </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Valor Adesão (R$)</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.price_adesao}
-                                                onChange={(e) => setFormData({ ...formData, price_adesao: e.target.value })}
-                                                className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                                placeholder="R$ 0,00"
-                                            />
-                                        </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Valor Adesão (R$)</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.price_adesao}
+                                                        onChange={(e) => setFormData({ ...formData, price_adesao: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="R$ 0,00"
+                                                    />
+                                                </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Valor Mensalidade (R$)</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.price_mensalidade}
-                                                onChange={(e) => setFormData({ ...formData, price_mensalidade: e.target.value })}
-                                                className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                                placeholder="R$ 0,00"
-                                            />
-                                        </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Valor Mensalidade (R$)</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.price_mensalidade}
+                                                        onChange={(e) => setFormData({ ...formData, price_mensalidade: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="R$ 0,00"
+                                                    />
+                                                </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Custo Plataforma (R$)</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.cost_platform}
-                                                onChange={(e) => setFormData({ ...formData, cost_platform: e.target.value })}
-                                                className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                                placeholder="R$ 0,00"
-                                            />
-                                        </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Custo Plataforma (R$)</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.cost_platform}
+                                                        onChange={(e) => setFormData({ ...formData, cost_platform: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="R$ 0,00"
+                                                    />
+                                                </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Comissão Adesão (R$)</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.commission_adesao}
-                                                onChange={(e) => setFormData({ ...formData, commission_adesao: e.target.value })}
-                                                className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                                placeholder="R$ 0,00"
-                                            />
-                                        </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Comissão Adesão (R$)</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.commission_adesao}
+                                                        onChange={(e) => setFormData({ ...formData, commission_adesao: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="R$ 0,00"
+                                                    />
+                                                </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Comissão Mensal (R$)</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.commission_mensal}
-                                                onChange={(e) => setFormData({ ...formData, commission_mensal: e.target.value })}
-                                                className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
-                                                placeholder="R$ 0,00"
-                                            />
-                                        </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Comissão Mensal (R$)</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.commission_mensal}
+                                                        onChange={(e) => setFormData({ ...formData, commission_mensal: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="R$ 0,00"
+                                                    />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Categoria</label>
+                                                    <select
+                                                        required
+                                                        value={formData.category_id}
+                                                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                    >
+                                                        <option value="">Selecione uma categoria...</option>
+                                                        {categories.filter(c => c.name !== 'Planos').map(c => (
+                                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Preço de Venda (R$)</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.price}
+                                                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="R$ 0,00"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Estoque Inicial</label>
+                                                    <input
+                                                        type="number"
+                                                        required
+                                                        value={formData.stock_quantity}
+                                                        onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="0"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Peso (kg)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.weight}
+                                                        onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="1.0"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Dimensões (CxLxA cm)</label>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={formData.length}
+                                                            onChange={(e) => setFormData({ ...formData, length: e.target.value })}
+                                                            className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-2 font-bold text-white text-center outline-none focus:border-[#a61d24] text-xs"
+                                                            placeholder="Comp."
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={formData.width}
+                                                            onChange={(e) => setFormData({ ...formData, width: e.target.value })}
+                                                            className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-2 font-bold text-white text-center outline-none focus:border-[#a61d24] text-xs"
+                                                            placeholder="Larg."
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={formData.height}
+                                                            onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                                                            className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-2 font-bold text-white text-center outline-none focus:border-[#a61d24] text-xs"
+                                                            placeholder="Alt."
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">CEP de Origem</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.origin_zip}
+                                                        onChange={(e) => setFormData({ ...formData, origin_zip: e.target.value })}
+                                                        className="w-full bg-[#141414] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] text-sm"
+                                                        placeholder="30130-100"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
@@ -990,7 +1233,11 @@ const AdminProducts: React.FC = () => {
                                         disabled={isSaving}
                                         className="w-full py-5 bg-[#a61d24] text-white rounded-2xl font-black text-sm shadow-xl hover:bg-[#c92a32] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : editingProduct ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PLANO'}
+                                        {isSaving 
+                                            ? <Loader2 className="w-5 h-5 animate-spin" /> 
+                                            : editingProduct 
+                                                ? 'SALVAR ALTERAÇÕES' 
+                                                : (formData.item_type === 'plan' ? 'CADASTRAR PLANO' : 'CADASTRAR PRODUTO')}
                                     </button>
                                 </div>
                             </form>

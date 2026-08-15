@@ -30,6 +30,7 @@ interface Referral {
     status: string;
     commission?: string;
     product?: string;
+    level?: number;
 }
 
 const AffiliateReferrals: React.FC = () => {

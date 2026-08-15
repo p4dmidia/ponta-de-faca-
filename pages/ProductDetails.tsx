@@ -279,7 +279,7 @@ const ProductDetails: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight">
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
                                 {product.name}
                             </h1>
                             <div className="flex items-center gap-4">
@@ -292,7 +292,7 @@ const ProductDetails: React.FC = () => {
 
                         <div className="bg-[#0d0d0d] rounded-3xl p-8 mb-8 border border-white/5">
                             <div className="flex items-end gap-3 mb-2">
-                                <span className="text-4xl font-black text-[#a61d24]">
+                                <span className="text-3xl sm:text-4xl font-black text-[#a61d24]">
                                     R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </span>
                                 <span className="text-slate-500 font-bold mb-1 line-through">

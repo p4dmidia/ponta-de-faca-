@@ -185,7 +185,7 @@ const AffiliateReports: React.FC = () => {
                 amount: c.amount,
                 level: c.level,
                 description: c.description,
-                order: c.order
+                order: (Array.isArray(c.order) && c.order.length > 0 ? c.order[0] : (c.order || undefined)) as any
             }));
 
             setPurchases(mappedPurchases);

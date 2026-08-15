@@ -45,14 +45,26 @@ const RegisterPage: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     React.useEffect(() => {
-        // Tenta capturar o código do patrocinador do cookie
-        const ref = Cookies.get('classea_ref');
+        // Tenta capturar o código do patrocinador da URL ou do cookie
+        const queryRef = searchParams.get('ref');
+        const cookieRef = Cookies.get('classea_ref');
+        const ref = queryRef || cookieRef;
+
         if (ref) {
-            console.log('Sponsor detected from cookie:', ref);
+            console.log('Sponsor detected:', ref);
             setSponsorCode(ref);
             fetchSponsorName(ref);
+
+            // Se veio da URL, salva no cookie para futuras interações/compras
+            if (queryRef) {
+                Cookies.set('classea_ref', queryRef.toLowerCase(), {
+                    expires: 30,
+                    path: '/',
+                    sameSite: 'lax'
+                });
+            }
         }
-    }, []);
+    }, [searchParams]);
 
     const fetchSponsorName = async (code: string) => {
         try {

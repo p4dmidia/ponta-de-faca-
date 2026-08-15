@@ -149,7 +149,7 @@ const CheckoutPage: React.FC = () => {
                             id: 'trimestral',
                             name: 'Clube Ponta D\'Faca - Trimestral',
                             price: 280.00,
-                            description: 'Assinatura Trimestral com seleção mensal premium de defumados artesanais.',
+                            description: 'Assinatura Trimestral com seleção mensal premium de defumados artesanais. Todo mês você pode trocar os produtos que quer receber!',
                             category: 'Clube de Assinatura',
                             image_url: '/assets/logo-ponta.png',
                             stock_quantity: 999
@@ -158,7 +158,7 @@ const CheckoutPage: React.FC = () => {
                             id: 'semestral',
                             name: 'Clube Ponta D\'Faca - Semestral',
                             price: 250.00,
-                            description: 'Assinatura Semestral com seleção mensal premium de defumados artesanais.',
+                            description: 'Assinatura Semestral com seleção mensal premium de defumados artesanais. BRINDE: Ganhe uma Cachaça Premiada! Todo mês você pode trocar os produtos que quer receber!',
                             category: 'Clube de Assinatura',
                             image_url: '/assets/logo-ponta.png',
                             stock_quantity: 999
@@ -167,7 +167,7 @@ const CheckoutPage: React.FC = () => {
                             id: 'anual',
                             name: 'Clube Ponta D\'Faca - Anual',
                             price: 230.00,
-                            description: 'Assinatura Anual com seleção mensal premium de defumados artesanais.',
+                            description: 'Assinatura Anual com seleção mensal premium de defumados artesanais. BRINDE: Ganhe 1 Doce Especial! Todo mês você pode trocar os produtos que quer receber!',
                             category: 'Clube de Assinatura',
                             image_url: '/assets/logo-ponta.png',
                             stock_quantity: 999
@@ -229,6 +229,11 @@ const CheckoutPage: React.FC = () => {
     const subtotal = cartTotal;
     const shipping = deliveryMethod === 'shipping' ? shippingFee : 0;
     const total = subtotal + shipping;
+
+    const hasTrimestral = cart.some(item => item.id === 'trimestral');
+    const hasSemestral = cart.some(item => item.id === 'semestral');
+    const hasAnual = cart.some(item => item.id === 'anual');
+    const hasAnySubscription = hasTrimestral || hasSemestral || hasAnual;
 
     const handleConfirmOrder = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -711,6 +716,41 @@ const CheckoutPage: React.FC = () => {
                                     <span className="text-2xl font-bold text-[#a61d24] wine-glow-text">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
+
+                            {/* Subscription Perks & Gifts Highlights */}
+                            {hasAnySubscription && (
+                                <div className="mt-6 space-y-3 bg-[#121212] border border-white/5 rounded-2xl p-4 animate-in fade-in duration-300">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-[#a61d24] mb-2 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[16px]">celebration</span>
+                                        Vantagens da sua Assinatura
+                                    </h4>
+                                    
+                                    {hasSemestral && (
+                                        <div className="flex items-start gap-2.5 text-xs text-[#F4E8D0]">
+                                            <span className="material-symbols-outlined text-amber-400 text-[18px] shrink-0">liquor</span>
+                                            <div>
+                                                <span className="font-bold text-amber-400">Brinde Incluso:</span> 1 Cachaça Premiada para celebrar seus 6 meses de clube!
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {hasAnual && (
+                                        <div className="flex items-start gap-2.5 text-xs text-[#F4E8D0]">
+                                            <span className="material-symbols-outlined text-amber-400 text-[18px] shrink-0">cake</span>
+                                            <div>
+                                                <span className="font-bold text-amber-400">Brinde Incluso:</span> 1 Doce Especial de Minas para comemorar seu plano anual!
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-start gap-2.5 text-xs text-[#F4E8D0]">
+                                        <span className="material-symbols-outlined text-emerald-400 text-[18px] shrink-0">swap_horiz</span>
+                                        <div>
+                                            <span className="font-bold text-emerald-400">Flexibilidade Total:</span> Todo mês você poderá escolher e trocar quais produtos deseja receber pelo nosso painel.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <button
                                 onClick={handleConfirmOrder}

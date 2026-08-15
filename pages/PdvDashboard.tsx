@@ -17,7 +17,8 @@ import {
     Check, 
     Plus, 
     Minus,
-    RefreshCw
+    RefreshCw,
+    X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -30,6 +31,9 @@ interface Company {
     email: string;
     telefone: string;
     billing_model: 'centralized' | 'consigned';
+    stock_quantity?: number;
+    min_stock_limit?: number;
+    reorder_status?: 'none' | 'pending' | 'completed';
 }
 
 const PdvDashboard: React.FC = () => {
@@ -77,6 +81,12 @@ const PdvDashboard: React.FC = () => {
     // Stats
     const [withdrawalsToday, setWithdrawalsToday] = useState(0);
     const [commissionEarned, setCommissionEarned] = useState(0);
+    
+    // Balance and Redemption states
+    const [availableBalance, setAvailableBalance] = useState(0);
+    const [showRedeemModal, setShowRedeemModal] = useState(false);
+    const [redeemAmount, setRedeemAmount] = useState('');
+    const [redeemLoading, setRedeemLoading] = useState(false);
 
     const mockCompany: Company = {
         id: 999,
@@ -105,6 +115,26 @@ const PdvDashboard: React.FC = () => {
                     setCompany(data);
                     setStockCount(data.stock_quantity ?? 15);
                     setMinStockLimit(data.min_stock_limit ?? 5);
+
+                    // Buscar o saldo e ganhos da loja da tabela user_settings
+                    const { data: profileData } = await supabase
+                        .from('user_profiles')
+                        .select('id')
+                        .eq('email', data.email)
+                        .maybeSingle();
+
+                    if (profileData) {
+                        const { data: settingsData } = await supabase
+                            .from('user_settings')
+                            .select('available_balance, total_earnings')
+                            .eq('user_id', profileData.id)
+                            .maybeSingle();
+
+                        if (settingsData) {
+                            setCommissionEarned(Number(settingsData.total_earnings || 0));
+                            setAvailableBalance(Number(settingsData.available_balance || 0));
+                        }
+                    }
                 } else {
                     // Fallback to mock for testing
                     setCompany(mockCompany);
@@ -207,29 +237,51 @@ const PdvDashboard: React.FC = () => {
 
     // Confirm delivery/withdrawal
     const handleConfirmDelivery = async () => {
-        if (!validatedOrder) return;
+        if (!validatedOrder || !company) return;
         setConfirmingDelivery(true);
         try {
-            // Update order status in Supabase to 'Entregue'
-            const { error } = await supabase
-                .from('orders')
-                .update({ 
-                    status: 'Entregue',
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', validatedOrder.id);
+            // Chamar a função RPC no Supabase
+            const { data: rpcData, error: rpcError } = await supabase.rpc('confirm_pdv_pickup', {
+                p_order_id: validatedOrder.id,
+                p_company_id: company.id
+            });
 
-            if (error) throw error;
-
-            // Reduce local stock by 1
-            const newStock = Math.max(0, stockCount - 1);
-            handleUpdateStock(newStock);
-            if (company) {
-                setCompany({ ...company, stock_quantity: newStock });
+            if (rpcError) throw rpcError;
+            
+            const result = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
+            
+            if (result && !result.success) {
+                throw new Error(result.message || 'Erro na validação do pedido.');
             }
-            // Add withdrawal stats
+
+            const finalNewStock = result?.new_stock ?? Math.max(0, stockCount - 1);
+
+            // Atualiza estados locais
+            setStockCount(finalNewStock);
+            if (company) {
+                setCompany({ ...company, stock_quantity: finalNewStock });
+            }
             setWithdrawalsToday(prev => prev + 1);
-            setCommissionEarned(prev => prev + 30.00); // PDV earns R$ 30,00 per pickup handling
+            
+            // Recarrega saldos reais
+            const { data: profileData } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .eq('email', company.email)
+                .maybeSingle();
+
+            if (profileData) {
+                const { data: settingsData } = await supabase
+                    .from('user_settings')
+                    .select('available_balance, total_earnings')
+                    .eq('user_id', profileData.id)
+                    .maybeSingle();
+
+                if (settingsData) {
+                    setCommissionEarned(Number(settingsData.total_earnings || 0));
+                    setAvailableBalance(Number(settingsData.available_balance || 0));
+                }
+            }
 
             toast.success('Retirada confirmada e registrada com sucesso!', {
                 style: {
@@ -246,11 +298,79 @@ const PdvDashboard: React.FC = () => {
             setValidatedOrder(null);
             setTokenInput('');
             fetchPendingPickups(); // Refresh lists
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error confirming delivery:', err);
-            toast.error('Erro ao confirmar entrega.');
+            toast.error(err.message || 'Erro ao confirmar entrega.');
         } finally {
             setConfirmingDelivery(false);
+        }
+    };
+
+    // Payout / Redeem Credits
+    const handleRedeemCredits = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const amount = Number(redeemAmount);
+        
+        if (isNaN(amount) || amount <= 0) {
+            toast.error('Informe um valor de resgate válido.');
+            return;
+        }
+
+        if (amount > availableBalance) {
+            toast.error('Saldo de comissões insuficiente para o resgate solicitado.');
+            return;
+        }
+
+        if (!company) return;
+
+        setRedeemLoading(true);
+        try {
+            const { data: profileData } = await supabase
+                .from('user_profiles')
+                .select('id, organization_id')
+                .eq('email', company.email)
+                .maybeSingle();
+
+            if (!profileData) {
+                throw new Error('Conta de usuário associada não encontrada.');
+            }
+
+            // 1. Create withdrawal record
+            const { error: withdrawErr } = await supabase
+                .from('withdrawals')
+                .insert([{
+                    user_id: profileData.id,
+                    amount_requested: amount,
+                    net_amount: amount,
+                    pix_key: 'Crédito em Produtos',
+                    status: 'pending',
+                    payment_method: 'product_credit',
+                    organization_id: profileData.organization_id
+                }]);
+
+            if (withdrawErr) throw withdrawErr;
+
+            // 2. Deduct available balance in user_settings
+            const newAvailable = availableBalance - amount;
+            const { error: balanceErr } = await supabase
+                .from('user_settings')
+                .update({ 
+                    available_balance: newAvailable,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('user_id', profileData.id);
+
+            if (balanceErr) throw balanceErr;
+
+            toast.success('Solicitação de troca por crédito em produtos efetuada com sucesso!');
+            setAvailableBalance(newAvailable);
+            setShowRedeemModal(false);
+            setRedeemAmount('');
+        } catch (error: any) {
+            console.error('Erro ao resgatar créditos:', error);
+            toast.error(error.message || 'Erro ao processar resgate.');
+        } finally {
+            setRedeemLoading(false);
         }
     };
 
@@ -424,14 +544,29 @@ const PdvDashboard: React.FC = () => {
                         <div className="w-12 h-12 bg-purple-950/40 border border-purple-900/30 rounded-2xl flex items-center justify-center text-purple-400">
                             <TrendingUp className="w-6 h-6" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none mb-2">Comissões PDV Acumuladas</p>
-                            <div className="flex items-baseline gap-2">
-                                <h3 className="text-3xl font-bold text-white leading-none">{formatCurrency(commissionEarned)}</h3>
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none mb-1.5">Ganhos Acumulados</p>
+                                    <h3 className="text-2xl font-bold text-white leading-none">{formatCurrency(commissionEarned)}</h3>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none mb-1.5">Saldo Disponível</p>
+                                    <h3 className="text-2xl font-bold text-emerald-400 leading-none">{formatCurrency(availableBalance)}</h3>
+                                </div>
                             </div>
+                            
+                            {availableBalance > 0 && (
+                                <button
+                                    onClick={() => setShowRedeemModal(true)}
+                                    className="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all self-end border border-emerald-500/20"
+                                >
+                                    Resgatar Crédito
+                                </button>
+                            )}
                         </div>
-                        <div className="pt-2 border-t border-white/5 text-[9px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                            <ArrowUpRight className="w-3.5 h-3.5" /> Ganhos por ponto de entrega
+                        <div className="pt-2 border-t border-white/5 text-[9px] text-[#a61d24] font-bold uppercase tracking-wider flex items-center gap-1">
+                            <ArrowUpRight className="w-3.5 h-3.5" /> Comissão de MMN + Taxas de Retirada
                         </div>
                     </div>
                 </div>
@@ -576,6 +711,58 @@ const PdvDashboard: React.FC = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Modal de Resgate de Crédito em Produtos */}
+            {showRedeemModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#0d0d0d] border border-white/5 w-full max-w-md rounded-3xl p-8 shadow-2xl relative space-y-6">
+                        <button 
+                            onClick={() => setShowRedeemModal(false)}
+                            className="absolute right-6 top-6 text-on-surface-variant hover:text-white transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        
+                        <div className="text-center space-y-2">
+                            <h3 className="text-lg font-bold text-white uppercase tracking-wider">Resgatar Crédito em Produtos</h3>
+                            <p className="text-xs text-on-surface-variant leading-relaxed">
+                                Converta suas comissões acumuladas em crédito para retirada de mercadorias para o seu estabelecimento.
+                            </p>
+                        </div>
+
+                        <div className="p-4 bg-[#121212] border border-white/5 rounded-2xl flex justify-between items-center text-xs font-bold">
+                            <span className="text-on-surface-variant">Saldo Disponível:</span>
+                            <span className="text-emerald-400 text-sm">{formatCurrency(availableBalance)}</span>
+                        </div>
+
+                        <form onSubmit={handleRedeemCredits} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold uppercase text-on-surface-variant tracking-widest pl-1">Valor do Resgate (R$)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    required
+                                    min="1"
+                                    max={availableBalance}
+                                    placeholder="Ex: 150.00"
+                                    value={redeemAmount}
+                                    onChange={(e) => setRedeemAmount(e.target.value)}
+                                    className="w-full bg-[#121212] border border-white/5 rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-[#a61d24] transition-all"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={redeemLoading}
+                                className="w-full py-4 bg-[#a61d24] text-white hover:bg-[#8d181e] rounded-2xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50 wine-glow"
+                            >
+                                {redeemLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                SOLICITAR RESGATE
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

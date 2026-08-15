@@ -42,9 +42,13 @@ import PdvDashboard from './pages/PdvDashboard';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import ReferralHandler from './components/ReferralHandler';
+import CartDrawer from './components/CartDrawer';
+import { useCart } from './components/CartContext';
+import { ShoppingBag } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
+  const { cartCount, setIsCartOpen } = useCart();
   const isDashboard = location.pathname.startsWith('/afiliado') || location.pathname.startsWith('/admin') || location.pathname.startsWith('/cliente') || location.pathname.startsWith('/pdv') || location.pathname === '/home-test';
 
   return (
@@ -103,6 +107,22 @@ const AppContent: React.FC = () => {
         </Routes>
       </main>
       {!isDashboard && <Footer />}
+      <CartDrawer />
+
+      {/* Floating Cart Button */}
+      {!isDashboard && cartCount > 0 && (
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="fixed bottom-6 right-6 z-40 bg-[#a61d24] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 wine-glow animate-bounce"
+          style={{ animationDuration: '3s' }}
+          title="Ver Carrinho"
+        >
+          <ShoppingBag className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 bg-white text-[#a61d24] text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-[#a61d24] shadow-sm">
+            {cartCount}
+          </span>
+        </button>
+      )}
     </div>
   );
 };

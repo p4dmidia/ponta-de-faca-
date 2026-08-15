@@ -152,10 +152,10 @@ const HomePage: React.FC = () => {
           <span className="inline-block font-label-lg text-label-lg text-primary tracking-[0.2em] uppercase mb-6 wine-glow-text">
             Herança &amp; Tradição Mineira
           </span>
-          <h1 className="font-display-lg text-display-lg md:text-[80px] leading-tight mb-8">
+          <h1 className="font-display-lg text-4xl sm:text-5xl md:text-[80px] leading-tight mb-8">
             Os melhores defumados artesanais de Minas, todos os meses na sua casa.
           </h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-10">
+          <p className="font-body-lg text-base md:text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-10 px-4">
             Clube exclusivo limitado para apenas {maxSlots} membros. Uma jornada sensorial através da cura lenta e do fogo real.
           </p>
           
@@ -186,7 +186,7 @@ const HomePage: React.FC = () => {
       {/* Plans Section */}
       <section className="py-section-gap px-margin-mobile md:px-margin-desktop max-w-7xl mx-auto scroll-mt-20" id="planos">
         <div className="text-center mb-16">
-          <h2 className="font-headline-lg text-headline-lg mb-4">Escolha sua Jornada</h2>
+          <h2 className="font-headline-lg text-3xl md:text-headline-lg mb-4">Escolha sua Jornada</h2>
           <p className="font-body-md text-body-md text-on-surface-variant">Planos pensados para os verdadeiros apreciadores da alta charcutaria.</p>
         </div>
         
@@ -194,10 +194,10 @@ const HomePage: React.FC = () => {
           {/* Plan 1 */}
           <div className="glass-card p-10 rounded-lg flex flex-col border border-white/5 hover:border-primary/30 transition-all duration-500">
             <span className="font-label-lg text-label-lg text-on-surface-variant mb-4">MENSAL</span>
-            <h3 className="font-headline-md text-headline-md mb-2">Trimestral</h3>
+            <h3 className="font-headline-md text-2xl md:text-headline-md mb-2">Trimestral</h3>
             <div className="flex items-baseline gap-1 mb-8">
               <span className="font-body-md text-body-md text-on-surface-variant">R$</span>
-              <span className="font-display-lg text-display-lg leading-none">280</span>
+              <span className="font-display-lg text-5xl md:text-display-lg leading-none">280</span>
               <span className="font-body-md text-body-md text-on-surface-variant">/mês</span>
             </div>
             <ul className="flex-grow space-y-4 mb-10">
@@ -213,6 +213,10 @@ const HomePage: React.FC = () => {
                 <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
                 5% de Cashback
               </li>
+              <li className="flex items-center gap-3 font-body-md text-body-md text-emerald-400 font-medium">
+                <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
+                Troque seus produtos todo mês!
+              </li>
             </ul>
             <button 
               onClick={() => handlePlanSelect('trimestral', 280)}
@@ -223,15 +227,15 @@ const HomePage: React.FC = () => {
           </div>
           
           {/* Plan 2 (Anual - Featured) */}
-          <div className="relative glass-card p-10 rounded-lg flex flex-col border border-primary/50 wine-glow transform scale-105 z-10 bg-surface-container-low">
+          <div className="relative glass-card p-10 rounded-lg flex flex-col border border-primary/50 wine-glow transform md:scale-105 z-10 bg-surface-container-low">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary-container text-white px-4 py-1 rounded-full font-label-md text-label-md">
               MELHOR VALOR
             </div>
             <span className="font-label-lg text-label-lg text-primary mb-4">ANUAL</span>
-            <h3 className="font-headline-md text-headline-md mb-2">Plano Anual</h3>
+            <h3 className="font-headline-md text-2xl md:text-headline-md mb-2">Plano Anual</h3>
             <div className="flex items-baseline gap-1 mb-8">
               <span className="font-body-md text-body-md text-on-surface-variant">R$</span>
-              <span className="font-display-lg text-display-lg leading-none text-primary">230</span>
+              <span className="font-display-lg text-5xl md:text-display-lg leading-none text-primary">230</span>
               <span className="font-body-md text-body-md text-on-surface-variant">/mês</span>
             </div>
             <ul className="flex-grow space-y-4 mb-10">
@@ -251,6 +255,14 @@ const HomePage: React.FC = () => {
                 <span className="material-symbols-outlined text-primary text-[20px]">verified</span>
                 Frete Grátis em toda a Loja
               </li>
+              <li className="flex items-center gap-3 font-body-md text-body-md text-amber-400 font-bold">
+                <span className="material-symbols-outlined text-[20px]">cake</span>
+                Brinde: 1 Doce Especial!
+              </li>
+              <li className="flex items-center gap-3 font-body-md text-body-md text-emerald-400 font-medium">
+                <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
+                Troque seus produtos todo mês!
+              </li>
             </ul>
             <button 
               onClick={() => handlePlanSelect('anual', 230)}
@@ -263,10 +275,10 @@ const HomePage: React.FC = () => {
           {/* Plan 3 */}
           <div className="glass-card p-10 rounded-lg flex flex-col border border-white/5 hover:border-primary/30 transition-all duration-500">
             <span className="font-label-lg text-label-lg text-on-surface-variant mb-4">SEMESTRAL</span>
-            <h3 className="font-headline-md text-headline-md mb-2">Semestral</h3>
+            <h3 className="font-headline-md text-2xl md:text-headline-md mb-2">Semestral</h3>
             <div className="flex items-baseline gap-1 mb-8">
               <span className="font-body-md text-body-md text-on-surface-variant">R$</span>
-              <span className="font-display-lg text-display-lg leading-none">250</span>
+              <span className="font-display-lg text-5xl md:text-display-lg leading-none">250</span>
               <span className="font-body-md text-body-md text-on-surface-variant">/mês</span>
             </div>
             <ul className="flex-grow space-y-4 mb-10">
@@ -281,6 +293,14 @@ const HomePage: React.FC = () => {
               <li className="flex items-center gap-3 font-body-md text-body-md">
                 <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
                 Acesso ao Fórum do Clube
+              </li>
+              <li className="flex items-center gap-3 font-body-md text-body-md text-amber-400 font-bold">
+                <span className="material-symbols-outlined text-[20px]">liquor</span>
+                Brinde: Cachaça Premiada!
+              </li>
+              <li className="flex items-center gap-3 font-body-md text-body-md text-emerald-400 font-medium">
+                <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
+                Troque seus produtos todo mês!
               </li>
             </ul>
             <button 
@@ -299,7 +319,7 @@ const HomePage: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
             <div>
               <span className="font-label-lg text-label-lg text-primary uppercase tracking-widest">AS CURADORIAS</span>
-              <h2 className="font-display-lg text-headline-lg mt-2">Nossas Experiências de Sabor</h2>
+              <h2 className="font-display-lg text-3xl md:text-headline-lg mt-2">Nossas Experiências de Sabor</h2>
             </div>
             <div className="max-w-md">
               <p className="font-body-md text-body-md text-on-surface-variant text-left md:text-right">
@@ -311,7 +331,7 @@ const HomePage: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter">
             {/* Combo 1 */}
-            <div className="md:col-span-8 group relative h-[500px] overflow-hidden rounded-lg">
+            <div className="md:col-span-8 group relative h-[350px] md:h-[500px] overflow-hidden rounded-lg">
               <img 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 alt="Tábua de charcutaria artesanal Ponta D'Faca"
@@ -319,7 +339,7 @@ const HomePage: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
               <div className="absolute bottom-10 left-10 max-w-md">
-                <h3 className="font-headline-lg text-headline-lg mb-2">Combo 1 — Clássico Mineiro</h3>
+                <h3 className="font-headline-lg text-2xl md:text-headline-lg mb-2">Combo 1 — Clássico Mineiro</h3>
                 <p className="font-body-md text-body-md text-on-surface-variant mb-6">Linguiça Artesanal, Bacon Defumado em Lenha de Macieira, Copa Lombo e Costelinha Maturada.</p>
                 <span className="font-label-md text-label-md px-3 py-1 bg-surface-container-high rounded-full border border-white/10 italic opacity-80 block w-fit">
                   * Variação de peso de 10-15% devido ao processo de cura e desidratação.
@@ -328,7 +348,7 @@ const HomePage: React.FC = () => {
             </div>
             
             {/* Combo 2 */}
-            <div className="md:col-span-4 group relative h-[500px] overflow-hidden rounded-lg">
+            <div className="md:col-span-4 group relative h-[300px] md:h-[500px] overflow-hidden rounded-lg">
               <img 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 alt="Defumados de churrasco premium"
@@ -336,21 +356,21 @@ const HomePage: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
               <div className="absolute bottom-10 left-10">
-                <h3 className="font-headline-md text-headline-md mb-2">Churrasco Premium</h3>
+                <h3 className="font-headline-md text-2xl md:text-headline-md mb-2">Churrasco Premium</h3>
                 <p className="font-body-md text-body-md text-on-surface-variant">Brisket, Pastrami, Cupim e Linguiça Especial de autoria.</p>
               </div>
             </div>
             
             {/* Combo 3 */}
-            <div className="md:col-span-12 group relative h-[400px] overflow-hidden rounded-lg bg-[#0a0a0a]">
-              <div className="grid md:grid-cols-2 h-full">
-                <div className="p-12 flex flex-col justify-center">
+            <div className="md:col-span-12 group relative h-auto md:h-[400px] overflow-hidden rounded-lg bg-[#0a0a0a]">
+              <div className="grid grid-cols-1 md:grid-cols-2 h-full">
+                <div className="p-8 sm:p-12 flex flex-col justify-center">
                   <span className="font-label-lg text-label-lg text-tertiary mb-4 tracking-widest">EDIÇÃO LIMITADA</span>
-                  <h3 className="font-display-lg text-headline-lg mb-4">Combo 3 — Experiência Chef</h3>
-                  <p className="font-body-lg text-body-lg text-on-surface-variant mb-8">Itens sazonais, edições limitadas e cortes exclusivos que você não encontrará em nenhum outro lugar.</p>
+                  <h3 className="font-display-lg text-2xl md:text-headline-lg mb-4 text-white">Combo 3 — Experiência Chef</h3>
+                  <p className="font-body-lg text-base md:text-body-lg text-on-surface-variant mb-8">Itens sazonais, edições limitadas e cortes exclusivos que você não encontrará em nenhum outro lugar.</p>
                   <a className="text-white font-label-lg text-label-lg border-b border-primary w-fit pb-1 hover:text-primary transition-colors" href="#">VER DETALHES DA PRÓXIMA EDIÇÃO</a>
                 </div>
-                <div className="relative h-full overflow-hidden">
+                <div className="relative h-64 md:h-full overflow-hidden">
                   <img 
                     className="w-full h-full object-cover opacity-80" 
                     alt="Experiência gourmet com charcutaria artesanal"
@@ -374,8 +394,8 @@ const HomePage: React.FC = () => {
             <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>local_shipping</span>
             <div className="h-[1px] w-12 bg-primary"></div>
           </div>
-          <h2 className="font-headline-md text-headline-md mb-6 italic">O Ritmo da Excelência</h2>
-          <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+          <h2 className="font-headline-md text-2xl md:text-headline-md mb-6 italic">O Ritmo da Excelência</h2>
+          <p className="font-body-lg text-base md:text-body-lg text-on-surface-variant leading-relaxed">
             Trabalhamos sob demanda para garantir o frescor absoluto de cada defumado. <br/>
             <span className="text-on-surface font-semibold">Prazo de até 7 dias úteis para produção e entrega.</span>
           </p>
@@ -389,7 +409,7 @@ const HomePage: React.FC = () => {
             <span className="inline-block font-label-lg text-label-lg text-primary tracking-[0.1em] uppercase mb-4">
               Vagas Esgotadas?
             </span>
-            <h2 className="font-headline-md text-headline-md mb-4">Fila de Espera Oficial</h2>
+            <h2 className="font-headline-md text-2xl md:text-headline-md mb-4">Fila de Espera Oficial</h2>
             <p className="font-body-md text-body-md text-on-surface-variant">
               Inscreva-se na lista abaixo. Quando surgir uma vaga no Clube, nossa equipe notificará você de imediato.
             </p>
